@@ -488,6 +488,7 @@ class Jablotron():
 						break
 
 					if (is_device_state_packet(prefix)):
+						LOGGER.debug(str(binascii.hexlify(packet), "utf-8"))
 						parse_device_state_packet(packet)
 						break
 
@@ -495,6 +496,8 @@ class Jablotron():
 						prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX
 						or prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX_2
 					):
+						LOGGER.debug(str(binascii.hexlify(packet), "utf-8"))
+
 						if (
 							prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX
 							and is_device_state_packet(packet[7:9])
