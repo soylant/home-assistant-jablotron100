@@ -139,7 +139,7 @@ def check_serial_port(serial_port: str) -> None:
 		if model is None:
 			raise ModelNotDetected
 
-		if not re.match(r"JA-101", model):
+		if not re.match(r"^JA-10[16]", model):
 			raise ModelNotSupported("Model {} not supported".format(model))
 
 	except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError):
@@ -260,7 +260,7 @@ class Jablotron():
 
 		state_packet = Jablotron._int_to_bytes(int_packets[state] + section)
 
-		self._send_packet(Jablotron._create_code_packet(code) + b"\x80\x02\x0d" + state_packet)
+		self._send_packet(self._create_code_packet(code) + b"\x80\x02\x0d" + state_packet)
 
 	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
 		return self._alarm_control_panels
@@ -532,8 +532,8 @@ class Jablotron():
 		while not self._state_checker_stop_event.is_set():
 			if not self._state_checker_data_updating_event.wait(0.5):
 				if counter == 0:
-					self._send_packet(Jablotron._create_code_packet(self._config[CONF_PASSWORD]) + b"\x52\x02\x13\x05\x9a")
-				elif counter % 10 == 0:
+					self._send_packet(self._create_code_packet(self._config[CONF_PASSWORD]) + b"\x52\x02\x13\x05\x9a")
+				else:
 					self._send_packet(b"\x52\x01\x02")
 
 			time.sleep(1)
@@ -548,6 +548,20 @@ class Jablotron():
 		time.sleep(0.1)
 
 		stream.close()
+
+	def _create_code_packet(self, code: str) -> bytes:
+		code_packet = b"\x80\x08\x03\x39\x39\x39" if self._is101() else b"\x80\x08\x03\x30"
+
+		for code_number in code:
+			code_packet += Jablotron._int_to_bytes(48 + int(code_number))
+
+		return code_packet
+
+	def _is101(self) -> bool:
+		return re.match(r"^JA-101", self._central_unit.model) is not None
+
+	def _is106(self) -> bool:
+		return re.match(r"^JA-106", self._central_unit.model) is not None
 
 	@staticmethod
 	def _parse_sections_states_packet(packet: bytes) -> Dict[int, bytes]:
@@ -586,14 +600,6 @@ class Jablotron():
 			return STATE_ON
 
 		return None
-
-	@staticmethod
-	def _create_code_packet(code: str) -> bytes:
-		code_packet = b""
-		for code_number in code:
-			code_packet += Jablotron._int_to_bytes(48 + int(code_number))
-
-		return b"\x80\x08\x03\x39\x39\x39" + code_packet
 
 	@staticmethod
 	def _int_to_bytes(number: int) -> bytes:
